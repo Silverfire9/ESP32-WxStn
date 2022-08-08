@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel='icon' type='image/png' href='wxstn.ico'>
+		<link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+		<center>
+			<h1>Settings</h1>
+		</center>
+		<form method="post" enctype="text/plain">
+			<table border="0">
+				<tr>
+					<td colspan="2"><h3>Wifi Settings</h3></td>
+				</tr>
+				<tr>
+					<td>Wifi mode:</td>
+					<td><input type="radio" name="WifiMode" value="STA" checked>Station Mode <input type="radio" name="WifiMode" value="AP">Access Point Mode</td>
+				</tr>
+				<tr>
+					<td><label for="WiFiSSID">Wifi SSID:</label></td>
+					<td><input type="text" id="WiFiSSID" name="WiFi_SSID" value=""></td>
+				</tr>
+				</tr>
+				<tr>
+					<td><label for="WiFiPass">Wifi Password:</label></td>
+					<td><input type="text" id="WiFiPass" name="Wifi_Passwd" value=""></td>
+				</tr>
+				<tr>
+					<td><label for="StaticIP">Static IP?</label></td>
+					<td><input type="checkbox" id="StaticIP" name="Static_IP" value="1" checked></td>
+				</tr>
+				<tr>
+					<td><label for="GatewayURL">Internet Gateway:</label></td>
+					<td><input type="text" name="GatewayURL[0]" value="" size="1" maxlength="3">.<input type="text" name="GatewayURL[1]" value="" size="1" maxlength="3">.<input type="text" name="GatewayURL[2]" value="" size="1" maxlength="3">.<input type="text" name="GatewayURL[3]" value="" size="1" maxlength="3"></td>
+				</tr>
+				<tr>
+					<td>IP Address:</td>
+					<td><input type="text" name="IPAddrr1" value="" size="1" maxlength="3">.<input type="text" name="IPAddr2" value="" size="1" maxlength="3">.<input type="text" name="IPAddr3" value="" size="1" maxlength="3">.<input type="text" name="IPAddr4" value="" size="1" maxlength="3"></td>
+				</tr>
+				<tr>
+					<td>Subnet Mask:</td>
+					<td><input type="text" name="Subnet1" value="255" size="1" maxlength="3">.<input type="text" name="Subnet2" value="255" size="1" maxlength="3">.<input type="text" name="Subnet3" value="255" size="1" maxlength="3">.<input type="text" name="Subnet4" value="0" size="1" maxlength="3"></td>
+				</tr>
+				<tr>
+					<td><a href="wait.html"><button type="submit" name="SaveWiFi" value="Save">Save WiFi Settings</button></a>&nbsp<a href="wait.html"><button type="reset" name="ClearWiFi" value="Clear">Clear</button></a></td>
+				</tr>
+			</table>
+		</form>
+		<form method="post" enctype="text/plain">
+			<table border="0">
+				<tr>
+					<td colspan="2"><h3>MQTT Settings</h3></td>
+				<tr>
+					<td>Broker IP Address:</td>
+					<td><input type="text" name="MQTTIP1" value="255" size="1" maxlength="3">.<input type="text" name="MQTTIP2" value="255" size="1" maxlength="3">.<input type="text" name="MQTTIP3" value="255" size="1" maxlength="3">.<input type="text" name="MQTTIP4" value="0" size="1" maxlength="3"></td>
+				</tr>
+				<tr>
+					<td>Broker port:</td>
+					<td><input type="text" name="WQTTport" value="1883" maxlength="4" size="2"></td>
+				</tr>
+				<tr>
+					<td>Client name:</td>
+					<td><input type="text" name="WQTTName" value="WxStn"></td>
+				</tr>
+				<tr>
+					<td><a href="wait.html"><button name="SaveMQTT" value="Save">Save MQTT Settings</button></a>&nbsp<a href="wait.html"><button name="ClearMQTT" value="Clear">Clear</button></a></td>
+				</tr>
+			</table>
+		</form>
+		<form method="post" enctype="text/plain">
+			<table border="0">
+				<tr>
+					<td colspan="2"><h3>Time Settings</h3></td>
+				</tr>
+				<tr>
+					<td>NTP server 1:</td>
+					<td><input type="text" name="NTP1" value="pool.ntp.org"></td>
+				</tr>
+				<tr>
+					<td>NTP server 2:</td>
+					<td><input type="text" name="NTP2" value=""></td>
+				</tr>
+				<tr>
+					<td>NTP server 3:</td>
+					<td><input type="text" name="NTP3" value=""></td>
+				</tr>
+				<tr>
+					<td colspan="2">&nbsp</td>
+				</tr>
+				<tr>
+					<td>Use DST:</td>
+					<td><input type="checkbox" name="UseDST" value="1" checked></td>
+				</tr>
+				<tr>
+					<td>DST offset:</td>
+					<td><input type="text" name="DSTOffset" value="60" size="1" maxlength="2"> minutes</td>
+				</tr>
+				<tr>
+					<td>DST begins:</td>
+					<td><input type="text" name="DSTStartMonth" value="1" size="1" maxlength="2"> week of <input type="text" name="DSTStartMonth" value="1" size="1" maxlength="2"> month at <input type="time" name="DSTStartTime" value="02:00 AM" size="1"></td>
+				</tr>
+				<tr>
+					<td>DST ends:</td>
+					<td><input type="text" name="DSTStartMonth" value="1" size="1" maxlength="2"> week of <input type="text" name="DSTStartMonth" value="1" size="1" maxlength="2"> month at <input type="time" name="DSTStartTime" value="02:00 AM" size="1"></td>
+				</tr>
+				</tr>
+					<td>&nbsp</td>
+				<tr>
+				<tr>
+					<td><a href="wait.html"><button name="SaveTime" value="Save">Save Time Settings</button></a>&nbsp<a href="wait.html"><button name="ClearTime" value="Clear">Clear</button></a></td>
+				</tr>
+			</table>
+			</form>
+			<form method="post" enctype="text/plain">
+			<table border="0">
+				<tr>
+					<td><h3>Firmware Update</h3></td>
+				</tr>
+				<tr>
+					<td>Update file: <input type="text">&nbsp<a href="wait.html"><button name="SubmitUp" value="Update">Update</button></a></td>
+				</tr>
+			</table>
+			</form>
+		<br>
+		<br>
+		<br>
+		<center><a href="main.html"><button name="CancelSet" value="Cancel" size="2"">Main</button></a></center>
+	</body>
+</html>

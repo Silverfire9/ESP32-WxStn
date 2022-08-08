@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+	<meta http-equiv='refresh' content='600' />
+	<head>
+		<link rel='icon' type='image/png' href='wxstn.ico'>
+		<link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+		<center>
+			<h1>Cat's Forehead Weather Station</h1>
+			<h3>Current conditions %HOUR%:%MINUTE% <img src="%POWER%" style="height:25px;width=%WIDE%" alt="Power Source"></h3>
+					<center>
+						<table>
+							<tr>
+								<td colspan='2'><img src='temperature.png' alt='Temperature'></td>
+								<td>%TEMPERATURE%&deg;C</td>
+							</tr>
+							<tr>
+								<td colspan='3'>&nbsp</td>
+							</tr>
+							<tr>
+								<td rowspan='2'><img src='humidity.png' alt='Humidity'></td>
+									<td>Relative<br>Humidity</td>
+									<td>%HUMIDITY%&#37</td>
+							</tr>
+							<tr>
+								<td>Dewpoint</td>
+								<td>%DEWPOINT%&deg;C</td>
+							</tr>
+							<tr>
+								<td colspan='3'>&nbsp</td>
+							</tr>
+							<tr>
+								<td rowspan='2' align='left'><img src='wind.png' alt='Wind'></td>
+								<td>Direction:</td>
+								<td>%WINDDIR%</td>
+							</tr>
+							<tr>
+								<td>Speed:</td>
+								<td>%WINDSPEED%km/h gusting to %WINDGUST%km/h</td>
+							</tr>
+							<tr>
+								<td colspan='3'>&nbsp</td>
+							</tr>
+							<tr>
+								<td rowspan='2' align='left'><img src='rain.png' alt='Rainfall'></td>
+							<td>Last hour:</td>
+							<td>%HOURLYRAIN%mm</td>
+							</tr>
+							<tr>
+								<td>Today:</td>
+								<td>%DAILYRAIN%mm</td>
+							</tr>
+							<tr>
+								<td colspan='3'>&nbsp</td>
+							</tr>
+							<tr>
+								<td rowspan='2' align='left'><img src='pressure.png' alt='Barometric Pressure'></td>
+								<td>Raw:</td>
+								<td>%RAWPRESSURE%kPa</td>
+							</tr>
+							<tr>
+								<td>Sea level:</td>
+								<td>%SEALEVEL%kPa</td>
+							</tr>
+							<tr>
+								<td colspan='3'>&nbsp</td>
+							</tr>
+							<tr>
+								<td rowspan='2' align='left'><img src='light.png' alt='Light'></td>
+								<td>Brightness:</td>
+								<td>%BRIGHTNESS%</td>
+							</tr>
+							<td>UV Index:</td>
+								<td>%UVINDEX%</td>
+							</tr>
+						</td>
+					</tr>
+				</table>
+			</center>
+			<br>
+			<br>
+			<br>
+			<a href='settings.html'><input type='button' name='Settings' value='Settings' size='2'></a></button>
+		</center>
+	</body>
+</html>
