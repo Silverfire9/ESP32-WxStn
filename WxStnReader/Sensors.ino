@@ -1,31 +1,78 @@
 void readDS18B20() {
+  #define TWOPTCAL
+  //#define OFFSETCAL
   float ds18Temp;
   static float oldTemp;
-
-  sensors.requestTemperatures();
-  temperature = sensors.getTempCByIndex(0);
-  
-  temperature = temperature + ds18CalOffset;
-  #ifdef DS18EBUG 
-  Serial.println("Reading DS18B20...");
-  Serial.print("DS18B20 temperature reading: "); Serial.print(temperature); Serial.println("ºC");
-  Serial.print("DS18B20 vs BME280 difference: "); Serial.print(abs(temperature - temperature)); Serial.println("ºC");
+  #ifdef TWOPTCAL
+  const float ds18RawRange = calibrations.ds18RawHi - calibrations.ds18RawLo;
+  const float ds18RefRange = calibrations.ds18RefHi - calibrations.ds18RefLo;
   #endif
 
-  if (oldTemp != temperature) {
-    #ifdef DS18EBUG 
-    Serial.println("Setting temperature message flag");
-    #endif
-    bitSet(flags, 2);  //Temperature flag
-    oldTemp = temperature;
+  sensors.requestTemperatures();
+  ds18Temp = sensors.getTempCByIndex(0);
+
+  if (ds18Temp < -100)  {
+    Serial.println("No DS18B20 sensor connected. Using fake value");
   }
+  else  {
+    #ifdef OFFSETCAL
+    weather.temperature = ds18Temp + calibrations.ds18CalOffset;
+    #elif defined TWOPTCAL
+    weather.temperature = (((ds18Temp - calibrations.ds18RawLo) * ds18RefRange) / ds18RawRange) + calibrations.ds18RefLo;
+    #else
+    weather.temperature = ds18Temp;
+    #endif
+    #ifdef DS18EBUG 
+    Serial.println("Reading DS18B20...");
+    Serial.print("DS18B20 temperature reading: "); Serial.print(weather.temperature); Serial.println("ºC");
+    Serial.print("DS18B20 vs BME280 difference: "); Serial.print(abs(weather.temperature - weather.temperature)); Serial.println("ºC");
+    #endif
+  
+    if (oldTemp != weather.temperature) {
+      #ifdef DS18EBUG 
+      Serial.println("Setting temperature message flag");
+      #endif
+      bitSet(flags, 2);  //Temperature flag
+      oldTemp = weather.temperature;
+    }
+    calculateFeelTemp();
+  }
+}
+
+void calculateFeelTemp() {
+  #ifdef FEELDEBUG
+  Serial.print("Raw: ");
+  Serial.println(weather.temperature);
+  #endif
+  if ((weather.temperature > 15) && (weather.dewpoint > 10))  {                                                  // Humidex
+    weather.feelTemp = weather.temperature+(0.5555*(6.11*(pow(2.71828, 5417.7530*((1/273.16-(1/(273.15+weather.dewpoint))))))-10));
+    #ifdef FEELDEBUG
+    Serial.print("Humidex: ");
+    #endif
+  }
+  else if ((weather.temperature <= 10) && (weather.windSpeed[timeMin/10] > 4.8)) {          // Windchill factor
+    float v = pow(weather.windSpeed[timeMin/10], 0.16);
+    weather.feelTemp = 13.12+(0.6125*weather.temperature)-(11.37*v)+(0.3965*weather.temperature*v);
+    #ifdef FEELDEBUG
+    Serial.print("Windchill: ");
+    #endif
+  }
+  else {                                                                    // No correction
+    weather.feelTemp = weather.temperature;
+    #ifdef FEELDEBUG
+    Serial.print("Uncorrected: ");
+    #endif
+  }
+  #ifdef FEELDEBUG
+  Serial.println(weather.feelTemp);
+  #endif
 }
 
 void calculateDewpoint() {
   float a = 17.625;    // Magnus coefficient a
   float b = 243.04;    // Magnus coefficient b
-  float alpha = (log(humidity / 100)) + ((a * temperature) / (b + temperature));
-  dewpoint = (b * alpha) / (a - alpha);
+  float alpha = (log(weather.humidity / 100)) + ((a * weather.temperature) / (b + weather.temperature));
+  weather.dewpoint = (b * alpha) / (a - alpha);
   #ifdef DEWDEBUG 
   Serial.println("Setting dewpoint message flag");
   #endif
@@ -33,7 +80,7 @@ void calculateDewpoint() {
 }
 
 void calculateSealevel() {
-  pressureSeaLvl = ((pressureRaw * 10) * (pow((1 - ((0.0065 * altitude) / (temperature + (0.0065 * altitude) + 273.15))), -5.257))) / 10;
+  weather.pressureSeaLvl = ((weather.pressureRaw * 10) * (pow((1 - ((0.0065 * weather.altitude) / (weather.temperature + (0.0065 * weather.altitude) + 273.15))), -5.257))) / 10;
   #ifdef BMEDEBUG 
   Serial.println("Setting pressure message flag");
   #endif
@@ -41,42 +88,43 @@ void calculateSealevel() {
 }
 
 void readBME() {
-  static float oldPress = pressureRaw;
-  static int oldHumid = humidity;
+  static float oldPress = weather.pressureRaw;
+  static int oldHumid = weather.humidity;
 
   #ifdef BMEDEBUG 
   Serial.println("Start BME reading...");
   #endif
 
-  humidity = bme.readHumidity();                // Throwaway read for humidity
+  weather.humidity = bme.readHumidity();                // Throwaway read for humidity
+  weather.pressureRaw = bme.readPressure();             // Throwaway read for pressure
   #ifdef BMEDEBUG 
-  Serial.print("Humidity read - Result: "); Serial.print(humidity); Serial.println("%");
+  Serial.print("Humidity read - Result: "); Serial.print(weather.humidity); Serial.println("%");
   #endif
-  /*temperature = bme.readTemperature();       // Temperature (deg C)
+  /*weather.temperature = bme.readTemperature();       // Temperature (deg C)
   #ifdef BMEDEBUG 
   Serial.println("Temperature read");
   #endif*/
-  pressureRaw = bme.readPressure() / 1000;     // Barometric Pressure (Pa converted to kPa);
+  weather.pressureRaw = bme.readPressure() / 1000;     // Barometric Pressure (Pa converted to kPa);
   #ifdef BMEDEBUG 
-  Serial.print("Pressure read - Result: "); Serial.print(pressureRaw); Serial.println("kPa");
+  Serial.print("Pressure read - Result: "); Serial.print(weather.pressureRaw); Serial.println("kPa");
   #endif
 
-  if (isnan(pressureRaw))  {
+  if (isnan(weather.pressureRaw))  {
     Serial.println("Bad BME read, using last pressure values");
   }
-  if ((pressureRaw <= oldPress - 0.25) || (oldPress + 0.25 <= pressureRaw))  {
-    if ((!isnan(temperature)) && (!isnan(pressureRaw))) {
+  if ((weather.pressureRaw <= oldPress - 0.25) || (oldPress + 0.25 <= weather.pressureRaw))  {
+    if ((!isnan(weather.temperature)) && (!isnan(weather.pressureRaw))) {
       calculateSealevel();
     }
     //    Serial.println("Setting pressure message flag");
     bitSet(flags, 3);  //Pressure flag
   }
 
-  if (isnan(humidity)) {
+  if (isnan(weather.humidity)) {
     Serial.println("Bad BME read, using last humidity value");
   }
-  if ((humidity <= oldHumid - 5) || (oldHumid + 5 <= humidity)) {
-    if ((!isnan(temperature)) && (!isnan(humidity))) {
+  if ((weather.humidity <= oldHumid - 5) || (oldHumid + 5 <= weather.humidity)) {
+    if ((!isnan(weather.temperature)) && (!isnan(weather.humidity))) {
       calculateDewpoint();
     }
     #ifdef BMEDEBUG 
@@ -118,52 +166,52 @@ void measWindDir() {
     #ifdef WINDDIRDEBUG 
     Serial.println("North");
     #endif
-    strcpy(windDir, "N");
+    strcpy(weather.windDir, "N");
   }
   else if ((2132 < valueAvg) && (valueAvg <= 2732))  {
     #ifdef WINDDIRDEBUG 
     Serial.println("Northeast");
     #endif
-    strcpy(windDir, "NE");
+    strcpy(weather.windDir, "NE");
   }
   else if (3751 < valueAvg)  {
     #ifdef WINDDIRDEBUG 
     Serial.println("East");
     #endif
-    strcpy(windDir, "E");
+    strcpy(weather.windDir, "E");
   }
   else if ((3317 < valueAvg) && (valueAvg <= 3751))  {
     #ifdef WINDDIRDEBUG 
     Serial.println("Southeast");
     #endif
-    strcpy(windDir, "SE");
+    strcpy(weather.windDir, "SE");
   }
   else if ((2732 < valueAvg) && (valueAvg <= 3317))  {
     #ifdef WINDDIRDEBUG 
     Serial.println("South");
     #endif
-    strcpy(windDir, "S");
+    strcpy(weather.windDir, "S");
   }
   else if ((1464 < valueAvg) && (valueAvg <= 2133))  {
     #ifdef WINDDIRDEBUG 
     Serial.println("Southwest");
     #endif
-    strcpy(windDir, "SW");
+    strcpy(weather.windDir, "SW");
   }
   else if (valueAvg <= 556)  {
     #ifdef WINDDIRDEBUG 
     Serial.println("West");
     #endif
-    strcpy(windDir, "W");
+    strcpy(weather.windDir, "W");
   }
   else if ((556 < valueAvg) && (valueAvg <= 918))  {
     #ifdef WINDDIRDEBUG 
     Serial.println("Northwest");
     #endif
-    strcpy(windDir, "NW");
+    strcpy(weather.windDir, "NW");
   }
 
-  if ((windDir <= oldDir) && (oldDir <= windDir)) {
+  if ((weather.windDir <= oldDir) && (oldDir <= weather.windDir)) {
     #ifdef WINDDIRDEBUG 
     Serial.println("Setting wind message flag");
     #endif
@@ -180,81 +228,102 @@ void AnemoInterrupt() {
   }
 }
 
-float measWindSpd(int readTime) {  
-  int avgInterval = timeMin / 10;
+void measWindSpd(int readTime) {  
+  int avgInterval = timeMin / 10;;
+  //static int interval = 0;
+  float tempSpeed;
   float windAvg = 0.0;
-  static float oldSpeed = windSpeed[0];
-
-  if (readTime == 3)  {
-    static int interval = 0;
-    float tempSpeed;
-
-    windCount[interval] = anemoCount;
-    anemoCount = 0;
-    tempSpeed = float(windCount[interval]);
-    tempSpeed = (tempSpeed / 3) * 2.4;
-    if (tempSpeed > windGust)  {
-      windGust = tempSpeed;
-    }
-    #ifdef WINDDEBUG 
-    Serial.print("3-second gust. Sample "); Serial.print(interval+1); Serial.print("/200: "); Serial.print(tempSpeed); Serial.print("km/h"); Serial.print("  Gust speed: "); Serial.print(windGust); Serial.println("km/h");
-    #endif
-    if (interval < 200)  {
-      interval++;
-    }
-    else  {
-      interval = 0;
-    }
+  while (avgInterval>10)  {
+    avgInterval = avgInterval / 10;
   }
 
-  if (readTime == 10)  {
+  #ifdef WINDSPDDEBUG
+  Serial.print("timeMin: "); Serial.println(timeMin);
+  Serial.print("avgInterval: "); Serial.println(avgInterval);
+  #endif
+  if (readTime == 3)  {
+    #ifdef WINDSPDDEBUG
+    Serial.println("3-second reading");
+    #endif
+
+    weather.windCount[weather.interval] = anemoCount;
+    anemoCount = 0;
+    tempSpeed = float(weather.windCount[weather.interval]);
+    tempSpeed = (tempSpeed / 3) * 2.4;
+    if (tempSpeed > weather.windGust)  {
+      weather.windGust = tempSpeed;
+    }
+    #ifdef WINDSPDDEBUG 
+    Serial.print("3-second gust. Sample "); Serial.print(weather.interval+1); Serial.print("/200: "); Serial.print(tempSpeed); Serial.print("km/h"); Serial.print("  Gust speed: "); Serial.print(weather.windGust); Serial.println("km/h");
+    Serial.print("Interval count:"); Serial.println(weather.interval);
+    #endif
+    if (weather.interval < 199)  {
+      weather.interval++;
+    }
+    else  {
+      weather.interval = 0;
+    }
+  }
+  else if (readTime == 10)  {
     #ifdef WINDSPDDEBUG 
     Serial.print("Rolling 10-minute average. Sample "); Serial.print(avgInterval+1); Serial.println("/10");
     Serial.println("Raw counts:");
     #endif
     for (int count = 0; count <= 199; count++)  {
-      windAvg = windAvg + float(windCount[count]);
+      windAvg = windAvg + float(weather.windCount[count]);
       #ifdef WINDSPDDEBUG 
-      Serial.print("Sample "); Serial.print(count+1); Serial.print(": "); Serial.println(windCount[count]);
+      Serial.print("Sample "); Serial.print(count+1); Serial.print(": "); Serial.println(weather.windCount[count]);
       #endif
     }
     #ifdef WINDSPDDEBUG 
     Serial.print("10 minute average count: "); Serial.println(windAvg);
     #endif
-    windSpeed[avgInterval] = ((windAvg/600) * 2.4);
+    weather.windSpeed[avgInterval] = ((windAvg/600) * 2.4);
     #ifdef WINDSPDDEBUG 
-    Serial.println("10-minute rolling average windspeed: ");
+    Serial.println("10-minute rolling average weather.windspeed: ");
     for (int count = 0; count < 5; count++)  {
-      Serial.print("Average "); Serial.print(count+1); Serial.print(": "); Serial.println(windSpeed[count]);
+      Serial.print("Average "); Serial.print(count+1); Serial.print(": "); Serial.println(weather.windSpeed[count]);
     }
     #endif
   }
-
-
-  if ((windSpeed[0] <= oldSpeed - 1) || (oldSpeed + 1 <= windSpeed[0])) {
-    //    Serial.println("Setting wind message flag");
+  #ifdef WINDSPDDEBUG
+  Serial.print("Windspeed: "); Serial.println(weather.windSpeed[avgInterval]);
+  Serial.print("Old Speed: "); Serial.println(weather.oldSpeed);
+  #endif
+  if (int(weather.windSpeed[avgInterval]) != int(weather.oldSpeed) - 1) {
+    #ifdef MQTTDEBUG
+    Serial.println("Setting wind message flag");
+    #endif
     bitSet(flags, 0);  //Wind flag
+    weather.oldSpeed = weather.windSpeed[avgInterval]; //fails here
   }
-  
-  oldSpeed = windSpeed[avgInterval];
+  else {
+    #ifdef WINDSPDDEBUG
+    Serial.print("'Old' weather.oldSpeed:"); Serial.println(weather.oldSpeed);
+    #endif
+    weather.oldSpeed = weather.oldSpeed+random(-5, 5);
+    #ifdef WINDSPDDEBUG
+    Serial.print("'New' weather.oldSpeed:"); Serial.println(weather.oldSpeed);
+    #endif
+  }
 }
 
 void RainInterrupt() {
   static unsigned long oldRainTime;
   unsigned long newTime = millis();
   if (newTime >= oldRainTime + reedDebounceTime) {
-    rainHr[timeHr] = rainHr[timeHr] + 0.2794;
+    weather.rainHr[timeHr] = weather.rainHr[timeHr] + 0.2794;
     oldRainTime = newTime;
   }
 }
 
 void measUV()  {
   static byte oldUV = 0;
-  int uvReading = analogRead(pinUV);
+  weather.uvReading = analogRead(pinUV);
   #ifdef UVDEBUG 
-  Serial.print("Raw analog UV reading: "); Serial.println(uvReading);
+  Serial.print("Raw analog UV reading: "); Serial.println(weather.uvReading);
   #endif
-  float uvIndexV = uvReading * (3.3 / 4096);
+  uvIndexV = weather.uvReading * (3.3 / 4096);
   #ifdef UVDEBUG 
   Serial.print("Raw analog voltage UV reading: "); Serial.println(uvIndexV);
   #endif
@@ -264,19 +333,19 @@ void measUV()  {
   #endif
 
   if (uvIndexf < 1)  {
-    uvIndex = 1;
+    weather.uvIndex = 1;
   }
   else if (uvIndexf > 15)  {
-    uvIndex = 15;
+    weather.uvIndex = 15;
   }
   else {
-    uvIndex = round(uvIndexf);
+    weather.uvIndex = round(uvIndexf);
   }
   #ifdef UVDEBUG 
-  Serial.print("Final UV Index: "); Serial.println(uvIndex);
+  Serial.print("Final UV Index: "); Serial.println(weather.uvIndex);
   #endif
 
-  if (uvIndex != oldUV) {
+  if (weather.uvIndex != oldUV) {
     #ifdef UVDEBUG 
     Serial.println("Setting light message flag for UV");
     #endif
@@ -286,28 +355,28 @@ void measUV()  {
 
 void measLux()  {
   static char oldLvl[7];
-  rawLux = analogRead(pinLux);
+  weather.rawLux = analogRead(pinLux);
   #ifdef LUXDEBUG 
-  Serial.print("Raw lux ADC reading: "); Serial.print(rawLux);
+  Serial.print("Raw lux ADC reading: "); Serial.print(weather.rawLux);
   #endif
-  if (rawLux < luxThreshold)  {
-    strcpy(lightLvl, "Dark");
+  if (weather.rawLux < calibrations.luxThreshold)  {
+    strcpy(weather.lightLvl, "Dark");
   }
-  else if ((luxThreshold < rawLux) && (rawLux < (luxThreshold + luxHysteresis)))  {
-    strcpy(lightLvl, "Dim");
+  else if ((calibrations.luxThreshold < weather.rawLux) && (weather.rawLux < (calibrations.luxThreshold + calibrations.luxHysteresis)))  {
+    strcpy(weather.lightLvl, "Dim");
   }
   else  {
-    strcpy(lightLvl, "Bright");
+    strcpy(weather.lightLvl, "Bright");
   }
   #ifdef LUXDEBUG 
-  Serial.print(" - "); Serial.println(lightLvl);
+  Serial.print(" - "); Serial.println(weather.lightLvl);
   #endif
 
-  if (strcmp(lightLvl, oldLvl) != 0)  {
+  if (strcmp(weather.lightLvl, oldLvl) != 0)  {
     #ifdef LUXDEBUG 
     Serial.println("Setting light message flag for intensity");
     #endif
     bitSet(flags, 6);
-    strcpy(oldLvl, lightLvl);
+    strcpy(oldLvl, weather.lightLvl);
   }
 }

@@ -1,14 +1,5 @@
 void pubTelemetry(char* sensor) {
-  #ifdef MQTTDEBUG 
-  if (digitalRead(pinNetworkSelect) == 1)  {
-  Serial.print("WiFi Mode: Station");
-  }
-  else  {
-    Serial.println("WiFi Mode: Access Point");
-  }
-  #endif
-
-  if ((WiFi.status() != WL_CONNECTED) && (digitalRead(pinNetworkSelect) == 1))  {
+  if (WiFi.status() != WL_CONNECTED)  {
     Serial.print("Disconnected");
     while (WiFi.status() != WL_CONNECTED) {
       WiFi.disconnect();
@@ -30,19 +21,19 @@ void pubTelemetry(char* sensor) {
     strcpy(teleTopic, mqttDataTopic);                   // 12
     strcat(teleTopic, "/Timestamp");                    // 11 = 23
     strcpy(teleMessage, "Timestamp:");                  // 9
-    strcat(teleMessage, stampTime);                     // 21 = 30
+    strcat(teleMessage, weather.rtcTime);                     // 21 = 30
   }
 
   if (sensor == "Wind") {                           // Wind
     strcpy(teleTopic, mqttDataTopic);                   // 12
     strcat(teleTopic, "/Wind");                         // 6 = 18
     strcpy(teleMessage, "Speed:");                      // 7
-    dtostrf(windSpeed[timeHr / 10], 4, 2, strBuf);
+    dtostrf(weather.windSpeed[timeHr / 10], 4, 2, strBuf);
     strcat(teleMessage, strBuf);                        // 7
     strcat(teleMessage, ",Direction:");                 // 12
-    strcat(teleMessage, windDir);                       // 11
+    strcat(teleMessage, weather.windDir);                       // 11
     strcat(teleMessage, ",Gust:");                      // 7
-    dtostrf(windGust, 4, 2, strBuf);
+    dtostrf(weather.windGust, 4, 2, strBuf);
     strcat(teleMessage, strBuf);                        // 7 = 51
   }
 
@@ -50,29 +41,32 @@ void pubTelemetry(char* sensor) {
     strcpy(teleTopic, mqttDataTopic);                   // 12
     strcat(teleTopic, "/Rain");                         // 6 = 18
     strcpy(teleMessage, "Hourly:");                     // 8
-    dtostrf(rainHr[timeHr], 4, 2, strBuf);
+    dtostrf(weather.rainHr[timeHr], 4, 2, strBuf);
     strcat(teleMessage, strBuf);                        // 6
     strcat(teleMessage, ",24Hrs:");                     // 8
-    dtostrf(rainDaily, 4, 2, strBuf);
+    dtostrf(weather.rainDaily, 4, 2, strBuf);
     strcat(teleMessage, strBuf);                        // 7 = 29
   }
 
   if (sensor == "Temp") {                           // Temperature
     strcpy(teleTopic, mqttDataTopic);                   // 12
     strcat(teleTopic, "/Temperature");                  // 13 = 25
-    strcpy(teleMessage, "Temperature:");                // 13
-    dtostrf(temperature, 4, 1, strBuf);
-    strcat(teleMessage, strBuf);                        // 5 = 18
+    strcpy(teleMessage, "Raw:");                        // 4
+    dtostrf(weather.temperature, 4, 1, strBuf);
+    strcat(teleMessage, strBuf);                        // 5
+    strcat(teleMessage, ",Feel:");                      // 6
+    dtostrf(weather.feelTemp, 4, 1, strBuf);
+    strcat(teleMessage, strBuf);                        // 5 = 20
   }
 
   if (sensor == "Press") {                          // Pressure
-    strcpy(teleTopic, mqttDataTopic);                 // 12
+    strcpy(teleTopic,mqttDataTopic);                 // 12
     strcat(teleTopic, "/Pressure");                   // 10 = 22
     strcpy(teleMessage, "Raw:");                      // 5
-    dtostrf(pressureRaw, 4, 1, strBuf);
+    dtostrf(weather.pressureRaw, 4, 1, strBuf);
     strcat(teleMessage, strBuf);                      // 6
     strcat(teleMessage, ",Sea_Lvl:");                 // 9
-    dtostrf(pressureSeaLvl, 4, 1, strBuf);
+    dtostrf(weather.pressureSeaLvl, 4, 1, strBuf);
     strcat(teleMessage, strBuf);                      // 6 = 26
   }
 
@@ -80,7 +74,7 @@ void pubTelemetry(char* sensor) {
     strcpy(teleTopic, mqttDataTopic);                 // 12
     strcat(teleTopic, "/Humidity");                   // 11 = 23
     strcpy(teleMessage, "Humidity:");                 // 10
-    dtostrf(humidity, 4, 1, strBuf);
+    dtostrf(weather.humidity, 4, 1, strBuf);
     strcat(teleMessage, strBuf);                      // 7
   }
 
@@ -88,7 +82,7 @@ void pubTelemetry(char* sensor) {
     strcpy(teleTopic, mqttDataTopic);                 // 12
     strcat(teleTopic, "/Dewpoint");                   // 10 = 22
     strcpy(teleMessage, "Dewpoint:");                 // 11
-    dtostrf(dewpoint, 3, 1, strBuf);
+    dtostrf(weather.dewpoint, 3, 1, strBuf);
     strcat(teleMessage, strBuf);                      // 6 = 17
   }
 
@@ -96,35 +90,35 @@ void pubTelemetry(char* sensor) {
     strcpy(teleTopic, mqttDataTopic);                 // 12
     strcat(teleTopic, "/Light");                      // 7 = 19
     strcpy(teleMessage, "Overall:");                  // 8
-    itoa(rawLux, strBuf, 10);                         // 5
+    itoa(weather.rawLux, strBuf, 10);                         // 5
     strcat(teleMessage, strBuf);
     strcat(teleMessage, ",UV_Index:");                // 11
-    dtostrf(uvIndex, 1, 0, strBuf);
+    dtostrf(weather.uvIndex, 1, 0, strBuf);
     strcat(teleMessage, strBuf);                      // 5 = 32
   }
   
-  if (digitalRead(pinNetworkSelect) == 1)  {
-    while (!MQTTclient.publish(teleTopic, teleMessage)) {
-      #ifdef MQTTDEBUG
-      Serial.print("Not connected to MQTT. Reconnecting...");
-      #endif
-      while (!MQTTclient.connected()) {
-        #ifdef MQTTDEBUG
-        Serial.print("...");
-        #endif
-        if (MQTTclient.connect("WxStnClient")) {
-          #ifdef MQTTDEBUG
-          Serial.println("Connected");
-          #endif
-        }
-      }
-      delay(1000);
-    }
-    #ifdef MQTTDEBUG 
-    Serial.println("Publishing telemetry:");
-    Serial.print(teleTopic); Serial.print(", "); Serial.println(teleMessage);
+  while (!MQTTclient.publish(teleTopic, teleMessage)) {
+    #ifdef MQTTDEBUG
+    Serial.print("Not connected to broker Reconnecting...");
     #endif
+    while (!MQTTclient.connected()) {
+      #ifdef MQTTDEBUG
+      Serial.print("...");
+      #endif
+      if (MQTTclient.connect("WxStnClient")) {
+        #ifdef MQTTDEBUG
+        Serial.println("Connected");
+        #endif
+      }
+    }
+    delay(1000);
   }
-  else if (digitalRead(pinNetworkSelect) == 0) {Serial.println("No MQTT broker to publish to in Access Point Mode");}
-  else  {Serial.println("Unknown WiFi mode. Not Publishing MQTT messages");}
+  #ifdef MQTTDEBUG 
+  Serial.println("Publishing telemetry:");
+  Serial.print(teleTopic); Serial.print(", "); Serial.println(teleMessage);
+  #endif
+}
+
+void cmdReceive()  {
+  Serial.print("Received command");
 }
